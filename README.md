@@ -1,2 +1,2 @@
 # Client-Server-Simple
-Simple client-server program in C
+Simple client-server program in C using sockets
