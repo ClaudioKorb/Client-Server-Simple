@@ -1,10 +1,12 @@
-#include <stdio.h>
-#include <unistd.h>
+#include <sys/types.h>
 #include <sys/socket.h>
-#include <stdlib.h>
 #include <netinet/in.h>
-#include <string.h>
 #include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define PORT 8080
 
@@ -17,7 +19,18 @@ int main(int argc, char const *argv[])
   char *hello = "Hello from client";
   char buffer[1024] = {0};
 
-  if((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)      // AF_INET = IPV4, SOCK_STREAM = TCP, 0 = PROTOLOCO IP
+  struct addrinfo hints, *res;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+
+  if(getaddrinfo("127.0.0.1", "http", &hints, &res) != 0){
+    printf("Nao foi possivel identificar o servidor\n");
+    return -1;
+  }
+
+
+  if((sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0)      // AF_INET = IPV4, SOCK_STREAM = TCP, 0 = PROTOLOCO IP
   {
     printf("\n Socket creation error \n");
     return -1;
@@ -28,9 +41,9 @@ int main(int argc, char const *argv[])
   serv_addr.sin_family = AF_INET;                    // FAMILIA IPV4
   serv_addr.sin_port = htons(PORT);                  // PORT DO SERVIDOR
 
-  if(inet_pton(AF_INET, "10.0.0.102", &serv_addr.sin_addr) <= 0)    // CONVERTENDO O IP DE 'CHAR' PARA IPV4
-  {
-    printf("\nInvalid adress / Adress not supported \n");
+  if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0)    // CONVERTENDO O IP DE 'CHAR' PARA IPV4
+  {                                                                //pton = presentation to network
+    printf("\nInvalid adress / Adress not supported \n");          // Retorna -1 em erro e 0 se o ip não está no formato certo
     return -1;
   }
 
