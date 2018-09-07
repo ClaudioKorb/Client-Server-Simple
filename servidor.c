@@ -28,8 +28,8 @@ int main(int argc, char const * argv[])
 
   adress.sin_family      = AF_INET;             //FAMILIA DE ENDEREÇOS IPV4
   adress.sin_addr.s_addr = INADDR_ANY;          //IP DO SERVIDOR SERÁ LOCALHOST???
-  adress.sin_port        = htons(PORT);         //PORTA DO SERVIDOR -> PORT = 8080
-
+  adress.sin_port        = htons(PORT);         //PORTA DO SERVIDOR -> PORT = 8080    htons = host to network short
+                                                //                                     (converte o método de guardar informação)
   if(bind(server_fd, (struct sockaddr *)&adress, sizeof(adress)) < 0)     // LIGA O SERVIDOR AO ENDEREÇO
   {
     perror("bind");
@@ -51,7 +51,7 @@ int main(int argc, char const * argv[])
   valread = read(new_socket, buffer, 1024);       // LE A MENSAGEM DO CLIENTE
   printf("%s\n", buffer);                         // ESCREVE A MENSAGEM DO CLIENTE
   send(new_socket, hello, strlen(hello), 0);      // ENVIA A MENSAGEM AO CLIENTE
-  printf("Hello message sent\n");   
+  printf("Hello message sent\n");
   return 0;
 
 }
