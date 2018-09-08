@@ -9,14 +9,17 @@
 #include <stdlib.h>
 
 #define PORT 8080
+#define LEN  1024
 
+void f_send_message(int sock);
 
 int main(int argc, char const *argv[])
 {
-  struct sockaddr_in adress;                            // ENDEREÇO DO CLIENTE
-  int sock = 0, valread;                                //SOCKET PARA O CLIENTE
-  struct sockaddr_in serv_addr;                         // ENDEREÇO DO SERVIDOR
-  char *hello = "Hello from client";
+  struct sockaddr_in adress;                                                    // ENDEREÇO DO CLIENTE
+  int sock = 0, valread;                                                        //SOCKET PARA O CLIENTE
+  struct sockaddr_in serv_addr;                                                 // ENDEREÇO DO SERVIDOR
+  char *msg;
+  msg = malloc(1024*sizeof(char));
   char buffer[1024] = {0};
 
   struct addrinfo hints, *res;
@@ -52,10 +55,23 @@ int main(int argc, char const *argv[])
     printf("\nConnection failed \n");
     return -1;
   }
-
-  send(sock, hello, strlen(hello), 0);              //ENVIA mensagem
-  printf("Hello message sent\n");
+  f_send_message(sock);
+  /*
+  printf("Write a message to the server: \n");
+  fgets(msg, 1024, stdin);
+  send(sock, msg, strlen(msg), 0);                  //ENVIA mensagem
+  printf("Message sent\n");
+  */
   valread = read(sock, buffer, 1024);               //LE MENSAGEM DE CHEGADA
   printf("%s\n", buffer);                           //IMPRIME MENSAGEM DE CHEGADA
   return 0;
+}
+
+void f_send_message(int sock){
+  char* mensagem = malloc(LEN*sizeof(char));
+  printf("Write a message to the server: \n");
+  fgets(mensagem, LEN, stdin);
+  send(sock, mensagem, strlen(mensagem), 0);
+  printf("Message  sent\n");
+  return;
 }
