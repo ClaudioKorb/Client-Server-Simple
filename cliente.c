@@ -12,6 +12,7 @@
 #define LEN  1024
 
 void f_send_message(int sock);
+int strcmpst1nl (const char * s1, const char * s2);
 
 int main(int argc, char const *argv[])
 {
@@ -55,15 +56,20 @@ int main(int argc, char const *argv[])
     printf("\nConnection failed \n");
     return -1;
   }
-  f_send_message(sock);
-  /*
-  printf("Write a message to the server: \n");
-  fgets(msg, 1024, stdin);
-  send(sock, msg, strlen(msg), 0);                  //ENVIA mensagem
-  printf("Message sent\n");
-  */
-  valread = read(sock, buffer, 1024);               //LE MENSAGEM DE CHEGADA
-  printf("%s\n", buffer);                           //IMPRIME MENSAGEM DE CHEGADA
+
+  while(1)
+  {
+    f_send_message(sock);
+    memset(buffer, '\0', strlen(buffer));
+    valread = recv(sock, buffer, 1024, 0);             //LE MENSAGEM DE CHEGADA
+    printf("%s\n", buffer);                           //IMPRIME MENSAGEM DE CHEGADA
+    if(strcmpst1nl(buffer, "exit") == 0)
+    {
+      exit(0);
+      close(sock);
+    }
+  }
+
   return 0;
 }
 
@@ -74,4 +80,20 @@ void f_send_message(int sock){
   send(sock, mensagem, strlen(mensagem), 0);
   printf("Message  sent\n");
   return;
+}
+
+int strcmpst1nl (const char * s1, const char * s2)
+{
+  char s1c;
+  do
+    {
+      s1c = *s1;
+      if (s1c == '\n')
+          s1c = 0;
+      if (s1c != *s2)
+          return 1;
+      s1++;
+      s2++;
+    } while (s1c); /* already checked *s2 is equal */
+  return 0;
 }
