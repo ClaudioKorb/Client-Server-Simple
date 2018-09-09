@@ -51,36 +51,62 @@ int main(int argc, char const * argv[])
     exit(EXIT_FAILURE);
   }
 
+  char mensagem[1024];
+  strcpy(mensagem, "Bem vindo ao servidor de arquivos!\nComandos: create -- Criar Arquivo / delete -- Deletar Arquivo \n");
+  send(new_socket, mensagem, strlen(mensagem), 0);
+//POSSIVEL CRIAR E DELETAR ARQUIVOS
   while(1)
   {
     valread = read(new_socket, buffer, 1024);
-    char mensagem[1024];
     if(strcmpst1nl(buffer, "create") == 0)
     {
-      strcpy(mensagem, "Voce deseja criar um arquivo");
-      printf("USUARIO QUER CRIAR UM ARQUIVO\n");
+      memset(mensagem, '\0', strlen(mensagem));            //LIMPANDO OS BUFFERS --- DESNECESSÁRIO??
+      memset(buffer, '\0', strlen(buffer));                //LIMPANDO OS BUFFERS
+
+      strcpy(mensagem, "Digite o nome do arquivo: ");
       send(new_socket, mensagem, strlen(mensagem), 0);
+
+      if(valread = read(new_socket, buffer, 32) == -1){
+        strcpy(mensagem, "Nome do arquivo invalido!");
+        send(new_socket, mensagem, strlen(mensagem), 0);
+        exit(0);
+      }
+
+      buffer[strlen(buffer)-1] = '\0';                     //REMOVENDO ULTIMO CARACTERE
+      char nome[40];
+      snprintf(nome, sizeof(nome), "%s.txt", buffer);     //ADICIONANDO A EXTENSAO .TXT AO NOME
+      FILE* new_file = fopen(nome, "w");                  //CRIANDO O ARQUIVO
+      if(new_file == NULL){                               //CHECANDO ERRO
+        strcpy(mensagem, "Falha ao criar arquivo!");
+        send(new_socket, mensagem, strlen(mensagem), 0);
+      }else{
+        strcpy(mensagem, "Arquivo criado com sucesso");
+        send(new_socket, mensagem, strlen(mensagem), 0);
+      }
     }
     else if (strcmpst1nl(buffer, "delete") == 0)
     {
-      strcpy(mensagem, "Voce deseja deletar um arquivo");
-      printf("USUARIO QUER DELETAR UM ARQUIVO\n");
+      strcpy(mensagem, "Digite o nome do arquivo a ser deletado: ");
       send(new_socket, mensagem, strlen(mensagem), 0);
-    }
-    else if(strcmpst1nl(buffer, "exit") == 0)
-    {
-      printf("USUARIO SAIU\n");
-      strcpy(mensagem, "exit");
-      send(new_socket, mensagem, strlen(mensagem), 0);
-      close(new_socket);
-      exit(0);
+      if(valread = read(new_socket, buffer, 32) == -1){
+        strcpy(mensagem, "Nome do arquivo invalido!");
+        send(new_socket, mensagem, strlen(mensagem), 0);
+      }
+      buffer[strlen(buffer)-1] = '\0';                    //DELETANDO O ULTIMO CARACTERE
+      char nome[40];
+      snprintf(nome, sizeof(nome), "%s.txt", buffer);     //INSERINDO A EXTENSAO .TXT AO NOME
+      if(remove(nome) == -1){                             //REMOVENDO O ARQUIVO
+        strcpy(mensagem, "Falha ao deletar arquivo");
+        send(new_socket, mensagem, strlen(mensagem), 0);
+      }else{
+        strcpy(mensagem, "Arquivo excluido com sucesso");
+        send(new_socket, mensagem, strlen(mensagem), 0);
+      }
     }
   }
   return 0;
 
 }
-
-
 
 int strcmpst1nl (const char * s1, const char * s2)
 {

@@ -59,10 +59,10 @@ int main(int argc, char const *argv[])
 
   while(1)
   {
-    f_send_message(sock);
-    memset(buffer, '\0', strlen(buffer));
     valread = recv(sock, buffer, 1024, 0);             //LE MENSAGEM DE CHEGADA
     printf("%s\n", buffer);                           //IMPRIME MENSAGEM DE CHEGADA
+    f_send_message(sock);
+    memset(buffer, '\0', strlen(buffer));
     if(strcmpst1nl(buffer, "exit") == 0)
     {
       exit(0);
@@ -75,10 +75,8 @@ int main(int argc, char const *argv[])
 
 void f_send_message(int sock){
   char* mensagem = malloc(LEN*sizeof(char));
-  printf("Write a message to the server: \n");
   fgets(mensagem, LEN, stdin);
   send(sock, mensagem, strlen(mensagem), 0);
-  printf("Message  sent\n");
   return;
 }
 
