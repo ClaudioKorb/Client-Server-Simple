@@ -1,3 +1,13 @@
+/*
+  PROGRAMA SERVIDOR PARA CONEXÃO SOCKETS EM SERVIDOR DE ARQUIVOS
+  Programador: Claudio André Korb
+  Instituição: Universidade Federal de Santa Catarina
+  Disciplina: Sistemas Operacionais
+
+  Big thanks to Brian "Beej Jorgensen" Hall for his amazing guide to Network Programming
+  Available at: http://beej.us/guide/bgnet/html/multi/index.html
+*/
+
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -10,7 +20,7 @@ int strcmpst1nl (const char * s1, const char * s2);
 
 int main(int argc, char const * argv[])
 {
-  int server_fd, new_socket, valread;                                           //server_fd = servidor, valread = buffer de entrada
+  int server_fd, new_socket, valread;                                           //server_fd = servidor, valread = codigo de leitura
   struct sockaddr_in adress;                                                    //endereços
   int opt = 1;                                                                  //Usado para setsockopt()
   int addrlen = sizeof(adress);
@@ -60,8 +70,8 @@ int main(int argc, char const * argv[])
     valread = read(new_socket, buffer, 1024);
     if(strcmpst1nl(buffer, "create") == 0)
     {
-      memset(mensagem, '\0', strlen(mensagem));            //LIMPANDO OS BUFFERS --- DESNECESSÁRIO??
-      memset(buffer, '\0', strlen(buffer));                //LIMPANDO OS BUFFERS
+      memset(mensagem, '\0', strlen(mensagem));                                 //LIMPANDO OS BUFFERS --- DESNECESSÁRIO??
+      memset(buffer, '\0', strlen(buffer));                                     //LIMPANDO OS BUFFERS
 
       strcpy(mensagem, "Digite o nome do arquivo: ");
       send(new_socket, mensagem, strlen(mensagem), 0);
@@ -72,11 +82,11 @@ int main(int argc, char const * argv[])
         exit(0);
       }
 
-      buffer[strlen(buffer)-1] = '\0';                     //REMOVENDO ULTIMO CARACTERE
+      buffer[strlen(buffer)-1] = '\0';                                          //REMOVENDO ULTIMO CARACTERE
       char nome[40];
-      snprintf(nome, sizeof(nome), "%s.txt", buffer);     //ADICIONANDO A EXTENSAO .TXT AO NOME
-      FILE* new_file = fopen(nome, "w");                  //CRIANDO O ARQUIVO
-      if(new_file == NULL){                               //CHECANDO ERRO
+      snprintf(nome, sizeof(nome), "%s.txt", buffer);                           //ADICIONANDO A EXTENSAO .TXT AO NOME
+      FILE* new_file = fopen(nome, "w");                                        //CRIANDO O ARQUIVO
+      if(new_file == NULL){                                                     //CHECANDO ERRO
         strcpy(mensagem, "Falha ao criar arquivo!");
         send(new_socket, mensagem, strlen(mensagem), 0);
       }else{
@@ -92,10 +102,10 @@ int main(int argc, char const * argv[])
         strcpy(mensagem, "Nome do arquivo invalido!");
         send(new_socket, mensagem, strlen(mensagem), 0);
       }
-      buffer[strlen(buffer)-1] = '\0';                    //DELETANDO O ULTIMO CARACTERE
+      buffer[strlen(buffer)-1] = '\0';                                          //DELETANDO O ULTIMO CARACTERE
       char nome[40];
-      snprintf(nome, sizeof(nome), "%s.txt", buffer);     //INSERINDO A EXTENSAO .TXT AO NOME
-      if(remove(nome) == -1){                             //REMOVENDO O ARQUIVO
+      snprintf(nome, sizeof(nome), "%s.txt", buffer);                           //INSERINDO A EXTENSAO .TXT AO NOME
+      if(remove(nome) == -1){                                                   //REMOVENDO O ARQUIVO
         strcpy(mensagem, "Falha ao deletar arquivo");
         send(new_socket, mensagem, strlen(mensagem), 0);
       }else{
