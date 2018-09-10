@@ -123,7 +123,7 @@ void * at_connection(void* socket_fd)
       }
 
       buffer[strlen(buffer)-1] = '\0';                                          //REMOVENDO ULTIMO CARACTERE
-      snprintf(nome, sizeof(nome), "%s.txt",buffer);                           //ADICIONANDO A EXTENSAO .TXT AO NOME
+      snprintf(nome, sizeof(nome), "%s.txt",buffer);                            //ADICIONANDO A EXTENSAO .TXT AO NOME
       FILE* new_file = fopen(nome, "w");                                        //CRIANDO O ARQUIVO
       if(new_file == NULL){                                                     //CHECANDO ERRO
         strcpy(mensagem, "Falha ao criar arquivo!");
@@ -154,7 +154,6 @@ void * at_connection(void* socket_fd)
         send(new_socket, mensagem, strlen(mensagem), 0);
       }
     }
-
     //MOSTRANDO O CONTEUDO DO ARQUIVO-------------------------------------------
     else if(strcmpst1nl(buffer, "show") == 0)
     {
