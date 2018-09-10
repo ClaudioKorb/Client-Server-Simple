@@ -56,7 +56,7 @@ int main(int argc, char const * argv[])
   {
     printf("Client connected\n");
     pthread_t sniffer_thread;
-    new_socket = malloc(1);
+    new_socket = (int*)malloc(4);
     *new_socket = socket_client;
 
     if(pthread_create(&sniffer_thread, NULL, at_connection, (void*)new_socket) < 0)
