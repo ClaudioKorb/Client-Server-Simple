@@ -68,8 +68,8 @@ int main(int argc, char const *argv[])
 
   while(1)
   {
-    valread = recv(sock, buffer, 1024, 0);                                      //LE MENSAGEM DE CHEGADA
-    printf("%s\n", buffer);                                                     //IMPRIME MENSAGEM DE CHEGADA
+    valread = recv(sock, buffer, 1024, 0);
+    printf("%s\n", buffer);                                                     //IMPRIME MENSAGEM DE CHEGADA                                      //LE MENSAGEM DE CHEGADA
     f_send_message(sock);
     memset(buffer, '\0', strlen(buffer));
     if(strcmpst1nl(buffer, "exit") == 0)

@@ -30,7 +30,7 @@ int main(int argc, char const * argv[])
 {
   int socket_fd, socket_client, c, *new_socket;
   struct sockaddr_in server, client;
-
+  //CRIANDO O SOCKET PARA O SERVIDOR
   socket_fd = socket(AF_INET, SOCK_STREAM, 0);
   if(socket_fd == -1)
   {
@@ -41,7 +41,7 @@ int main(int argc, char const * argv[])
   server.sin_family = AF_INET;
   server.sin_addr.s_addr = INADDR_ANY;
   server.sin_port = htons(PORT);
-
+//LIGANDO O SOCKET À PORTA 8080
   if(bind(socket_fd, (struct sockaddr *)&server, sizeof(server)) < 0)
   {
     printf("Error: Bind");
@@ -49,9 +49,11 @@ int main(int argc, char const * argv[])
   }
   printf("Bind ok\n");
 
+//ESPERANDO POR CONEXÕES
   listen(socket_fd, BACKLOG);
   printf("Waiting for connections...\n");
   c = sizeof(struct sockaddr_in);
+
   while(socket_client = accept(socket_fd, (struct sockaddr*)&client, (socklen_t*)&c))
   {
     printf("Client connected\n");
@@ -92,12 +94,16 @@ int strcmpst1nl (const char * s1, const char * s2)
 
 void * at_connection(void* socket_fd)
 {
+  DIR *current_dir = NULL;
   int new_socket = *(int*)socket_fd;
   int valread;
   char buffer[1024] = {0};                                                      //Buffer onde será armazenada mensagem de entrada
   char nome[40];
-  char mensagem[1024];
-  //POSSIVEL CRIAR E DELETAR ARQUIVOS
+  char *mensagem;
+
+  current_dir = opendir(".");
+  mensagem = (char*)malloc(1024*sizeof(char));
+
   strcpy(mensagem, "\nBem vindo ao servidor de arquivos!\nComandos: \ncreate -- Criar Arquivo \ndelete -- Deletar Arquivo \nwrite -- Escrever no Arquivo\nshow -- Mostrar Conteudo do Arquivo\nmkdir -- Criar Diretorio \nrmdir -- Remover Diretorio \n");
   send(new_socket, mensagem, strlen(mensagem), 0);
   valread = read(new_socket, buffer, 1024);
@@ -117,7 +123,7 @@ void * at_connection(void* socket_fd)
       }
 
       buffer[strlen(buffer)-1] = '\0';                                          //REMOVENDO ULTIMO CARACTERE
-      snprintf(nome, sizeof(nome), "%s.txt", buffer);                           //ADICIONANDO A EXTENSAO .TXT AO NOME
+      snprintf(nome, sizeof(nome), "%s.txt",buffer);                           //ADICIONANDO A EXTENSAO .TXT AO NOME
       FILE* new_file = fopen(nome, "w");                                        //CRIANDO O ARQUIVO
       if(new_file == NULL){                                                     //CHECANDO ERRO
         strcpy(mensagem, "Falha ao criar arquivo!");
@@ -242,10 +248,49 @@ void * at_connection(void* socket_fd)
         send(new_socket, mensagem, strlen(mensagem), 0);
       }
     }
+    else if(strcmpst1nl(buffer, "dir") == 0)
+    {
+      struct dirent *teste = NULL;
+      teste = readdir(current_dir);
+      memset(mensagem, 0, sizeof(mensagem));
+      while(teste = readdir(current_dir)){
+        strcat(mensagem, teste->d_name);
+        strcat(mensagem, "\n");
+      }
+      send(new_socket, mensagem, strlen(mensagem), 0);
+    }
+    else if(strcmpst1nl(buffer, "cd") == 0)
+    {
+      strcpy(mensagem, "Nome do diretorio: ");
+      send(new_socket, mensagem, strlen(mensagem), 0);
+      if(valread = read(new_socket, buffer, 80) == -1){
+        strcpy(mensagem, "Nome invalido");
+        send(new_socket, mensagem, strlen(mensagem), 0);
+      }else{
+        buffer[strlen(buffer) - 1] = '\0';
+        DIR *new_dir = opendir(buffer);
+        if(new_dir == NULL){
+          strcpy(mensagem, "Diretorio nao encontrado");
+          send(new_socket, mensagem, strlen(mensagem), 0);
+        }else{
+          current_dir = new_dir;
+          strcpy(mensagem, "OK");
+          send(new_socket, mensagem, strlen(mensagem), 0);
+        }
+
+      }
+    }
     else if(strcmpst1nl(buffer, "help") == 0)
     {
       strcpy(mensagem, "Comandos: \ncreate -- Criar Arquivo \ndelete -- Deletar Arquivo \nwrite -- Escrever no Arquivo\nshow -- Mostrar conteudo do arquivo\nmkdir -- Criar Diretorio \nrmdir -- Remover Diretorio \n");
       send(new_socket, mensagem, strlen(mensagem), 0);
+    }
+    else if(strcmpst1nl(buffer, "close") == 0)
+    {
+      strcpy(mensagem, "Conexao encerrada");
+      send(new_socket, mensagem, strlen(mensagem),0);
+      close(new_socket);
+      pthread_kill(pthread_self(), 0);
     }
     else
     {
