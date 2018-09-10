@@ -10,67 +10,97 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/socket.h>
 #include <stdlib.h>
-#include <netinet/in.h>
 #include <string.h>
+#include <dirent.h>
+#include<pthread.h>
+#include<semaphore.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <netinet/in.h>
 
 #define PORT 8080
+#define BACKLOG 10
 
 int strcmpst1nl (const char * s1, const char * s2);
+void * at_connection(void *socket_fd);
 
 int main(int argc, char const * argv[])
 {
-  int server_fd, new_socket, valread;                                           //server_fd = servidor, valread = codigo de leitura
-  struct sockaddr_in adress;                                                    //endereços
-  int opt = 1;                                                                  //Usado para setsockopt()
-  int addrlen = sizeof(adress);
-    char buffer[1024] = {0};                                                      //Buffer onde será armazenada mensagem de entrada
+  int socket_fd, socket_client, c, *new_socket;
+  struct sockaddr_in server, client;
+
+  socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if(socket_fd == -1)
+  {
+    printf("Error: Create socket");
+  }
+  printf("Created socket\n");
+
+  server.sin_family = AF_INET;
+  server.sin_addr.s_addr = INADDR_ANY;
+  server.sin_port = htons(PORT);
+
+  if(bind(socket_fd, (struct sockaddr *)&server, sizeof(server)) < 0)
+  {
+    printf("Error: Bind");
+    return 1;
+  }
+  printf("Bind ok\n");
+
+  listen(socket_fd, BACKLOG);
+  printf("Waiting for connections...\n");
+  c = sizeof(struct sockaddr_in);
+  while(socket_client = accept(socket_fd, (struct sockaddr*)&client, (socklen_t*)&c))
+  {
+    printf("Client connected\n");
+    pthread_t sniffer_thread;
+    new_socket = malloc(1);
+    *new_socket = socket_client;
+
+    if(pthread_create(&sniffer_thread, NULL, at_connection, (void*)new_socket) < 0)
+    {
+      printf("Error: create thread");
+      return 1;
+    }
+    printf("Thread criada\n");
+  }
+  if(socket_client < 0)
+  {
+    printf("Error: accept");
+    return 1;
+  }
+  return 0;
+}
+
+int strcmpst1nl (const char * s1, const char * s2)
+{
+  char s1c;
+  do
+    {
+      s1c = *s1;
+      if (s1c == '\n')
+          s1c = 0;
+      if (s1c != *s2)
+          return 1;
+      s1++;
+      s2++;
+    } while (s1c); /* already checked *s2 is equal */
+  return 0;
+}
+
+void * at_connection(void* socket_fd)
+{
+  int new_socket = *(int*)socket_fd;
+  int valread;
+  char buffer[1024] = {0};                                                      //Buffer onde será armazenada mensagem de entrada
   char nome[40];
-  char *hello = "Hello from server!";                                           //Mensagem a ser enviada pelo servidor
-
-  if((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)                        // AF_INET = IPV4 --     SOCK_STREAM = TCP --    0 = PROTOCOLO IP
-  {
-    perror("Socket failed");
-    exit(EXIT_FAILURE);
-  }
-
-  if(setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))        //ETAPA OPCIONAL
-  {
-    perror("setsocketopt");
-  }
-
-  adress.sin_family      = AF_INET;                                             //FAMILIA DE ENDEREÇOS IPV4
-  adress.sin_addr.s_addr = INADDR_ANY;                                          //IP DO SERVIDOR SERÁ LOCALHOST???
-  adress.sin_port        = htons(PORT);                                         //PORTA DO SERVIDOR -> PORT = 8080    htons = host to network short
-                                                                                //                                     (converte o método de guardar informação)
-  if(bind(server_fd, (struct sockaddr *)&adress, sizeof(adress)) < 0)           // LIGA O SERVIDOR AO ENDEREÇO
-  {
-    perror("bind");
-    exit(EXIT_FAILURE);
-  }
-
-  if(listen(server_fd, 3) < 0)                                                  // SERVIDOR ESPERA POR CONEXÕES, TAMANHO MÁXIMO DE FILA = 3
-  {
-    perror("listen");
-    exit(EXIT_FAILURE);
-  }
-
-  if((new_socket = accept(server_fd, (struct sockaddr *)&adress,
-                          (socklen_t*)&addrlen)) < 0)                           //EM UMA CONEXÃO
-  {
-    perror("accept");
-    exit(EXIT_FAILURE);
-  }
-
   char mensagem[1024];
-//POSSIVEL CRIAR E DELETAR ARQUIVOS
+  //POSSIVEL CRIAR E DELETAR ARQUIVOS
   strcpy(mensagem, "\nBem vindo ao servidor de arquivos!\nComandos: \ncreate -- Criar Arquivo \ndelete -- Deletar Arquivo \nwrite -- Escrever no Arquivo\nshow -- Mostrar Conteudo do Arquivo\nmkdir -- Criar Diretorio \nrmdir -- Remover Diretorio \n");
   send(new_socket, mensagem, strlen(mensagem), 0);
   valread = read(new_socket, buffer, 1024);
-
 
   while(1)
   {
@@ -227,22 +257,4 @@ int main(int argc, char const * argv[])
     memset(mensagem, '\0', strlen(mensagem));
     valread = read(new_socket, buffer, 1024);
   }
-  return 0;
-
-}
-
-int strcmpst1nl (const char * s1, const char * s2)
-{
-  char s1c;
-  do
-    {
-      s1c = *s1;
-      if (s1c == '\n')
-          s1c = 0;
-      if (s1c != *s2)
-          return 1;
-      s1++;
-      s2++;
-    } while (s1c); /* already checked *s2 is equal */
-  return 0;
 }
