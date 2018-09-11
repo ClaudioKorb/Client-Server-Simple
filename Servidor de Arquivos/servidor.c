@@ -28,6 +28,7 @@ void * at_connection(void *socket_fd);
 
 int main(int argc, char const * argv[])
 {
+  umask(ALLPERMS);
   int socket_fd, socket_client, c, *new_socket;
   struct sockaddr_in server, client;
   //CRIANDO O SOCKET PARA O SERVIDOR
@@ -95,15 +96,17 @@ int strcmpst1nl (const char * s1, const char * s2)
 void * at_connection(void* socket_fd)
 {
   DIR *current_dir = NULL;
+  char current_dir_name[1024];
   int new_socket = *(int*)socket_fd;
   int valread;
   char buffer[1024] = {0};                                                      //Buffer onde será armazenada mensagem de entrada
-  char nome[40];
+  char nome[1024];
   char *mensagem;
 
-  current_dir = opendir(".");
+  getcwd(current_dir_name, sizeof(current_dir_name));
+  current_dir = opendir(current_dir_name);
   mensagem = (char*)malloc(1024*sizeof(char));
-
+  //strcpy(mensagem, current_dir_name);
   strcpy(mensagem, "\nBem vindo ao servidor de arquivos!\nComandos: \ncreate -- Criar Arquivo \ndelete -- Deletar Arquivo \nwrite -- Escrever no Arquivo\nshow -- Mostrar Conteudo do Arquivo\nmkdir -- Criar Diretorio \nrmdir -- Remover Diretorio \n");
   send(new_socket, mensagem, strlen(mensagem), 0);
   valread = read(new_socket, buffer, 1024);
@@ -113,9 +116,9 @@ void * at_connection(void* socket_fd)
     //CRIANDO UM ARQUIVO-------------------------------------
     if(strcmpst1nl(buffer, "create") == 0)
     {
+      memset(buffer, 0, sizeof(buffer));
       strcpy(mensagem, "Digite o nome do arquivo: ");
       send(new_socket, mensagem, strlen(mensagem), 0);
-
       if(valread = read(new_socket, buffer, 32) == -1){
         strcpy(mensagem, "Nome do arquivo invalido!");
         send(new_socket, mensagem, strlen(mensagem), 0);
@@ -123,7 +126,12 @@ void * at_connection(void* socket_fd)
       }
 
       buffer[strlen(buffer)-1] = '\0';                                          //REMOVENDO ULTIMO CARACTERE
-      snprintf(nome, sizeof(nome), "%s.txt",buffer);                            //ADICIONANDO A EXTENSAO .TXT AO NOME
+      char caminho[1024] = "";
+      strcpy(caminho, current_dir_name);
+      caminho[strlen(caminho)] = '/';
+      strcat(caminho, buffer);
+      //caminho[strlen(caminho)-1] = '\0';
+      snprintf(nome, sizeof(nome), "%s.txt", caminho);                            //ADICIONANDO A EXTENSAO .TXT AO NOME
       FILE* new_file = fopen(nome, "w");                                        //CRIANDO O ARQUIVO
       if(new_file == NULL){                                                     //CHECANDO ERRO
         strcpy(mensagem, "Falha ao criar arquivo!");
@@ -138,25 +146,35 @@ void * at_connection(void* socket_fd)
     //DELETANDO UM ARQUIVO-----------------------------------------------------
     else if (strcmpst1nl(buffer, "delete") == 0)
     {
+      memset(buffer, 0, sizeof(buffer));
       strcpy(mensagem, "Digite o nome do arquivo a ser deletado: ");
       send(new_socket, mensagem, strlen(mensagem), 0);
       if(valread = read(new_socket, buffer, 32) == -1){
         strcpy(mensagem, "Nome do arquivo invalido!");
         send(new_socket, mensagem, strlen(mensagem), 0);
-      }
-      buffer[strlen(buffer)-1] = '\0';                                          //DELETANDO O ULTIMO CARACTERE
-      snprintf(nome, sizeof(nome), "%s.txt", buffer);                           //INSERINDO A EXTENSAO .TXT AO NOME
-      if(remove(nome) == -1){                                                   //REMOVENDO O ARQUIVO
-        strcpy(mensagem, "Falha ao deletar arquivo");
-        send(new_socket, mensagem, strlen(mensagem), 0);
       }else{
-        strcpy(mensagem, "Arquivo excluido com sucesso");
-        send(new_socket, mensagem, strlen(mensagem), 0);
+        buffer[strlen(buffer)-1] = '\0';
+        char* caminho = (char*)malloc(sizeof(buffer) + sizeof(current_dir_name));
+        strcpy(caminho, current_dir_name);
+        caminho[strlen(caminho)-1] = '/';
+        strcat(caminho, buffer);
+        snprintf(nome, sizeof(nome), "%s.txt",buffer);                            //ADICIONANDO A EXTENSAO .TXT AO NOME
+        strcpy(mensagem, nome);
+        free(caminho);                                          //DELETANDO O ULTIMO CARACTERE
+        snprintf(nome, sizeof(nome), "%s.txt", buffer);                           //INSERINDO A EXTENSAO .TXT AO NOME
+        if(remove(nome) == -1){                                                   //REMOVENDO O ARQUIVO
+          strcpy(mensagem, "Falha ao deletar arquivo");
+          send(new_socket, mensagem, strlen(mensagem), 0);
+        }else{
+          strcpy(mensagem, "Arquivo excluido com sucesso");
+          send(new_socket, mensagem, strlen(mensagem), 0);
+        }
       }
     }
     //MOSTRANDO O CONTEUDO DO ARQUIVO-------------------------------------------
     else if(strcmpst1nl(buffer, "show") == 0)
     {
+      memset(buffer, 0, sizeof(buffer));
       strcpy(mensagem, "Digite o nome do arquivo que deseja imprimir: ");
       send(new_socket, mensagem, strlen(mensagem), 0);
       if(valread = read(new_socket, buffer, 32) == -1){
@@ -164,6 +182,13 @@ void * at_connection(void* socket_fd)
         send(new_socket, mensagem, strlen(mensagem), 0);
       }else{
         buffer[strlen(buffer)-1] = '\0';
+        char* caminho = (char*)malloc(sizeof(buffer) + sizeof(current_dir_name));
+        strcpy(caminho, current_dir_name);
+        caminho[strlen(caminho)-1] = '/';
+        strcat(caminho, buffer);
+        snprintf(nome, sizeof(nome), "%s.txt",buffer);                            //ADICIONANDO A EXTENSAO .TXT AO NOME
+        strcpy(mensagem, nome);
+        free(caminho);
         snprintf(nome, sizeof(nome), "%s.txt", buffer);
         FILE* read_file = fopen(nome, "r");
         if(read_file == NULL){
@@ -181,6 +206,7 @@ void * at_connection(void* socket_fd)
     //ESCREVENDO EM UM ARQUIVO--------------------------------------------------
     else if(strcmpst1nl(buffer, "write") == 0)
     {
+      memset(buffer, 0, sizeof(buffer));
       strcpy(mensagem, "Digite o nome do arquivo em que deseja escrever: ");
       send(new_socket, mensagem, strlen(mensagem), 0);
       if(valread = read(new_socket, buffer, 32) == -1){
@@ -188,6 +214,13 @@ void * at_connection(void* socket_fd)
         send(new_socket, mensagem, strlen(mensagem), 0);
       }else{
         buffer[strlen(buffer)-1] = '\0';
+        char* caminho = (char*)malloc(sizeof(buffer) + sizeof(current_dir_name));
+        strcpy(caminho, current_dir_name);
+        caminho[strlen(caminho)-1] = '/';
+        strcat(caminho, buffer);
+        snprintf(nome, sizeof(nome), "%s.txt",buffer);                            //ADICIONANDO A EXTENSAO .TXT AO NOME
+        strcpy(mensagem, nome);
+        free(caminho);
         snprintf(nome, sizeof(nome), "%s.txt", buffer);
         FILE* write_file = fopen(nome, "w");
         if(write_file == NULL){
@@ -213,6 +246,7 @@ void * at_connection(void* socket_fd)
     //CRIANDO UM DIRETORIO -------------------------------------------------------
     else if(strcmpst1nl(buffer, "mkdir") == 0)
     {
+      memset(buffer, 0, sizeof(buffer));
       strcpy(mensagem, "Digite o nome do diretorio a ser criado: ");
       send(new_socket, mensagem, strlen(mensagem), 0);
       if(valread = read(new_socket, buffer, 32) == -1){
@@ -220,10 +254,11 @@ void * at_connection(void* socket_fd)
         send(new_socket, mensagem, strlen(mensagem), 0);
       }
       buffer[strlen(buffer)-1] = '\0';
-      if(mkdir(buffer, 777) == -1){
+      if(mkdir(buffer, ALLPERMS) == -1){
         strcpy(mensagem, "Erro ao criar diretorio!");
         send(new_socket, mensagem, strlen(mensagem), 0);
       }else{
+        chmod(buffer, ALLPERMS); 
         strcpy(mensagem, "Diretorio criado com sucesso!");
         send(new_socket, mensagem, strlen(mensagem), 0);
       }
@@ -232,6 +267,7 @@ void * at_connection(void* socket_fd)
     // REMOVENDO UM DIRETORIO -------------------------------------------------
     else if(strcmpst1nl(buffer, "rmdir") == 0)
     {
+      memset(buffer, 0, sizeof(buffer));
       strcpy(mensagem, "Digite o nome do diretorio a ser excluido: ");
       send(new_socket, mensagem, strlen(mensagem), 0);
       if(valread = read(new_socket, buffer, 32) == -1){
@@ -249,6 +285,7 @@ void * at_connection(void* socket_fd)
     }
     else if(strcmpst1nl(buffer, "dir") == 0)
     {
+      memset(buffer, 0, sizeof(buffer));
       struct dirent *teste = NULL;
       teste = readdir(current_dir);
       memset(mensagem, 0, sizeof(mensagem));
@@ -260,6 +297,7 @@ void * at_connection(void* socket_fd)
     }
     else if(strcmpst1nl(buffer, "cd") == 0)
     {
+      memset(buffer, 0, sizeof(buffer));
       strcpy(mensagem, "Nome do diretorio: ");
       send(new_socket, mensagem, strlen(mensagem), 0);
       if(valread = read(new_socket, buffer, 80) == -1){
@@ -267,12 +305,12 @@ void * at_connection(void* socket_fd)
         send(new_socket, mensagem, strlen(mensagem), 0);
       }else{
         buffer[strlen(buffer) - 1] = '\0';
-        DIR *new_dir = opendir(buffer);
-        if(new_dir == NULL){
-          strcpy(mensagem, "Diretorio nao encontrado");
+        if(chdir(buffer) == -1){
+          strcpy(mensagem, buffer);
           send(new_socket, mensagem, strlen(mensagem), 0);
         }else{
-          current_dir = new_dir;
+          getcwd(current_dir_name, sizeof(current_dir_name));
+          current_dir = opendir(current_dir_name);
           strcpy(mensagem, "OK");
           send(new_socket, mensagem, strlen(mensagem), 0);
         }
@@ -281,6 +319,7 @@ void * at_connection(void* socket_fd)
     }
     else if(strcmpst1nl(buffer, "help") == 0)
     {
+      memset(buffer, 0, sizeof(buffer));
       strcpy(mensagem, "Comandos: \ncreate -- Criar Arquivo \ndelete -- Deletar Arquivo \nwrite -- Escrever no Arquivo\nshow -- Mostrar conteudo do arquivo\nmkdir -- Criar Diretorio \nrmdir -- Remover Diretorio \n");
       send(new_socket, mensagem, strlen(mensagem), 0);
     }
@@ -293,6 +332,7 @@ void * at_connection(void* socket_fd)
     }
     else
     {
+      memset(buffer, 0, sizeof(buffer));
       strcpy(mensagem, "COMANDO INVALIDO!\n");
       send(new_socket, mensagem, strlen(mensagem), 0);
     }

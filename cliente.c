@@ -7,7 +7,6 @@
   Big thanks to Brian "Beej Jorgensen" Hall for his amazing guide to Network Programming
   Available at: http://beej.us/guide/bgnet/html/multi/index.html
 */
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -38,7 +37,7 @@ int main(int argc, char const *argv[])
   hints.ai_family = AF_UNSPEC;                                                  //IPv4 ou IPv6
   hints.ai_socktype = SOCK_STREAM;                                              //PROTOCOLO TCP
 
-  if(getaddrinfo("200.135.82.138", "http", &hints, &res) != 0){                      //RECUPERA INFORMACOES SOBRE O SERVIDOR DE DESTINO
+  if(getaddrinfo("127.0.0.1", "http", &hints, &res) != 0){                      //RECUPERA INFORMACOES SOBRE O SERVIDOR DE DESTINO
     printf("Nao foi possivel identificar o servidor\n");
     return -1;
   }
@@ -85,6 +84,8 @@ void f_send_message(int sock){
   char* mensagem = malloc(LEN*sizeof(char));
   fgets(mensagem, LEN, stdin);
   send(sock, mensagem, strlen(mensagem), 0);
+  memset(mensagem, '\0', sizeof(mensagem));
+  free(mensagem);
   return;
 }
 
