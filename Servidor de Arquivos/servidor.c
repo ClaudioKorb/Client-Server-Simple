@@ -28,7 +28,7 @@ void * at_connection(void *socket_fd);
 
 int main(int argc, char const * argv[])
 {
-  umask(ALLPERMS);
+  //umask(ALLPERMS);
   int socket_fd, socket_client, c, *new_socket;
   struct sockaddr_in server, client;
   //CRIANDO O SOCKET PARA O SERVIDOR
@@ -224,7 +224,7 @@ void * at_connection(void* socket_fd)
         snprintf(nome, sizeof(nome), "%s.txt", buffer);
         FILE* write_file = fopen(nome, "w");
         if(write_file == NULL){
-          strcpy(mensagem, "Falha ao abrir arquivo!");
+          strcpy(mensagem, nome);
           send(new_socket, mensagem, strlen(mensagem), 0);
         }else{
           strcpy(mensagem, "O que deseja escrever? ");
@@ -258,7 +258,7 @@ void * at_connection(void* socket_fd)
         strcpy(mensagem, "Erro ao criar diretorio!");
         send(new_socket, mensagem, strlen(mensagem), 0);
       }else{
-        chmod(buffer, ALLPERMS); 
+        chmod(buffer, ALLPERMS);
         strcpy(mensagem, "Diretorio criado com sucesso!");
         send(new_socket, mensagem, strlen(mensagem), 0);
       }
