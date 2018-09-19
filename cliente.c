@@ -1,6 +1,7 @@
 /*
   PROGRAMA CLIENTE PARA CONEXÃO SOCKETS EM SERVIDOR DE ARQUIVOS
-  Programador: Claudio André Korb
+  Programadores: Claudio André Korb
+                 Rafael Canal
   Instituição: Universidade Federal de Santa Catarina
   Disciplina: Sistemas Operacionais
 
@@ -29,7 +30,7 @@ int main(int argc, char const *argv[])
   int sock = 0, valread;                                                        // SOCKET PARA O CLIENTE
   struct sockaddr_in serv_addr;                                                 // ENDEREÇO DO SERVIDOR
   char *msg;
-  msg = malloc(1024*sizeof(char));
+  msg = (char *)malloc(1024*sizeof(char));
   char buffer[1024] = {0};
 
   struct addrinfo hints, *res;                                                  //ENDERECOS UTILIZADOS PARA PESQUISA DNS
@@ -81,8 +82,15 @@ int main(int argc, char const *argv[])
 }
 
 void f_send_message(int sock){
-  char* mensagem = malloc(LEN*sizeof(char));
+  char* mensagem = (char*)malloc(LEN*sizeof(char));
   fgets(mensagem, LEN, stdin);
+  if(strcmpst1nl(mensagem, "cls") == 0)
+  {
+    system("clear");
+    free(mensagem);
+    char* mensagem = (char*)malloc(LEN*sizeof(char));
+    fgets(mensagem, LEN, stdin);
+  }
   send(sock, mensagem, strlen(mensagem), 0);
   memset(mensagem, '\0', sizeof(mensagem));
   free(mensagem);
