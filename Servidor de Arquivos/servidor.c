@@ -20,16 +20,18 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#define PORT 8080
-#define BACKLOG 10
+#include <arpa/inet.h>
 
-pthread_mutex_t mutex;
+#define PORT 8979
+#define BACKLOG 5
+
+pthread_mutex_t mutex;                                                          //Mutex utilizado para controle de condições de corrida
 
 int strcmpst1nl (const char * s1, const char * s2);
 void * at_connection(void *socket_fd);
 int file_create(int new_socket, char *current_dir_name);
 int file_delete(int new_socket, char *current_dir_name);
-int file_print(int new_socket, char *current_dir_name);
+int file_read(int new_socket, char *current_dir_name);
 int file_write(int new_socket, char *current_dir_name);
 int directory_make(int new_socket, char *current_dir_name);
 int directory_remove(int new_socket, char *current_dir_name);
@@ -37,8 +39,9 @@ int directory_print(int new_socket, DIR *current_dir);
 
 int main(int argc, char const * argv[])
 {
-  int socket_fd, socket_client, c, *new_socket;
+  int socket_fd, socket_client, tam, *new_socket;
   struct sockaddr_in server, client;
+
   //CRIANDO O SOCKET PARA O SERVIDOR
   socket_fd = socket(AF_INET, SOCK_STREAM, 0);
   if(socket_fd == -1)
@@ -46,42 +49,50 @@ int main(int argc, char const * argv[])
     printf("Error: Create socket");
   }
   printf("Created socket\n");
+  //============================================================================
 
+  //ADICIONANDO O ENDEREÇO AO SOCKET
   server.sin_family = AF_INET;
   server.sin_addr.s_addr = INADDR_ANY;
   server.sin_port = htons(PORT);
-//LIGANDO O SOCKET À PORTA 8080
+  //============================================================================
+
+  //LIGANDO O SOCKET À PORTA 8080
   if(bind(socket_fd, (struct sockaddr *)&server, sizeof(server)) < 0)
   {
     printf("Error: Bind");
     return 1;
   }
   printf("Bind ok\n");
+  //============================================================================
   pthread_mutex_init(&mutex, NULL);
   //ESPERANDO POR CONEXÕES
   while(1){
   listen(socket_fd, BACKLOG);
   printf("Waiting for connections...\n");
-  c = sizeof(struct sockaddr_in);
-
-  while(socket_client = accept(socket_fd, (struct sockaddr*)&client, (socklen_t*)&c))
+  //============================================================================
+  tam = sizeof(struct sockaddr_in);
+  while(socket_client = accept(socket_fd, (struct sockaddr*)&client, (socklen_t*)&tam)) //ACEITANDO A CONEXÃO
   {
-    printf("Client connected\n");
-    pthread_t sniffer_thread;
-    new_socket = (int*)malloc(4);
+    struct in_addr ipAddr = client.sin_addr;
+    char ip[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &ipAddr, ip, INET_ADDRSTRLEN);
+    printf("Client connected: %s\n", ip);
+    pthread_t w_thread;
+    new_socket = (int*)malloc(sizeof(int));
     *new_socket = socket_client;
 
-    if(pthread_create(&sniffer_thread, NULL, at_connection, (void*)new_socket) < 0)
+    if(pthread_create(&w_thread, NULL, at_connection, (void*)new_socket) < 0)
     {
       printf("Error: create thread");
-      //return 1;
+      return 1;
     }
     printf("Thread criada\n");
   }
   if(socket_client < 0)
   {
     printf("Error: accept");
-    //return 1;
+    return 1;
   }
   pthread_mutex_destroy(&mutex);
 }
@@ -90,8 +101,8 @@ return 0;
 
 int strcmpst1nl (const char * s1, const char * s2)
 {
-  char s1c;
-  do
+  char s1c;                                     //FUNÇÃO USADA PARA COMPARAR DUAS STRINGS, SENDO QUE
+  do                                            // A SEGUNDA TERMINA EM CARACTERE NULO
     {
       s1c = *s1;
       if (s1c == '\n')
@@ -100,7 +111,7 @@ int strcmpst1nl (const char * s1, const char * s2)
           return 1;
       s1++;
       s2++;
-    } while (s1c); /* already checked *s2 is equal */
+    } while (s1c);
   return 0;
 }
 
@@ -110,14 +121,14 @@ void * at_connection(void* socket_fd)
   char current_dir_name[1024];
   int new_socket = *(int*)socket_fd;
   int valread;
-  char opt[1024] = {0};                                                      //Buffer onde será armazenada mensagem de entrada
-  char nome[1024];
-  char greetings[1024];
+  char opt[1024] = "";
+  char greeting[1024];
 
-  getcwd(current_dir_name, sizeof(current_dir_name));
-  current_dir = opendir(current_dir_name);
-  strcpy(greetings, "\nBem vindo ao servidor de arquivos!\nComandos: \ncreate -- Criar Arquivo \ndelete -- Deletar Arquivo \nwrite -- Escrever no Arquivo\nprint -- Mostrar Conteudo do Arquivo\nmkdir -- Criar Diretorio \nrmdir -- Remover Diretorio \n");
-  send(new_socket, greetings, strlen(greetings), 0);
+  getcwd(current_dir_name, sizeof(current_dir_name));                           //RECEBE O NOME DO DIRETORIO INICIAL
+  current_dir = opendir(current_dir_name);                                      //ABRE O DIRETORIO
+  strcpy(greeting, "\nBem vindo ao servidor de arquivos!\nComandos: \ncreate -- Criar Arquivo \ndelete -- Deletar Arquivo \nwrite -- Escrever no Arquivo\nread -- Mostrar Conteudo do Arquivo\nmkdir -- Criar Diretorio \nrmdir -- Remover Diretorio \ndir -- Mostrar conteudo do diretorio\ncd -- Trocar de Diretorio\nhelp -- Comandos \nclose -- Encerrar conexao\n");
+  send(new_socket, greeting, strlen(greeting), 0);                              //ENVIA MENSAGEM DE CUMPRIMENTO
+
   valread = read(new_socket, opt, 1024);
   while(1)
   {
@@ -134,10 +145,10 @@ void * at_connection(void* socket_fd)
       pthread_mutex_unlock(&mutex);
     }
     //MOSTRANDO O CONTEUDO DO ARQUIVO-------------------------------------------
-    else if(strcmpst1nl(opt, "print") == 0)
+    else if(strcmpst1nl(opt, "read") == 0)
     {
       pthread_mutex_lock(&mutex);
-      file_print(new_socket, current_dir_name);
+      file_read(new_socket, current_dir_name);
       pthread_mutex_unlock(&mutex);
     }
     //ESCREVENDO EM UM ARQUIVO--------------------------------------------------
@@ -161,10 +172,12 @@ void * at_connection(void* socket_fd)
       directory_remove(new_socket, current_dir_name);
       pthread_mutex_unlock(&mutex);
     }
+    // MOSTRANDO CONTEUDO DO DIRETORIO -----------------------------------------
     else if(strcmpst1nl(opt, "dir") == 0)
     {
       directory_print(new_socket, current_dir);
     }
+    // TROCANDO DE DIRETORIO ---------------------------------------------------
     else if(strcmpst1nl(opt, "cd") == 0)
     {
       char mensagem[1024] = "";
@@ -188,13 +201,15 @@ void * at_connection(void* socket_fd)
 
       }
     }
+    //MOSTRANDO COMANDOS -------------------------------------------------------
     else if(strcmpst1nl(opt, "help") == 0)
     {
       char mensagem[1024] = "";
       char buffer[1024] = "";
-      strcpy(mensagem, "Comandos: \ncreate -- Criar Arquivo \ndelete -- Deletar Arquivo \nwrite -- Escrever no Arquivo\nshow -- Mostrar conteudo do arquivo\nmkdir -- Criar Diretorio \nrmdir -- Remover Diretorio \n");
+      strcpy(mensagem, "Comandos: \ncreate -- Criar Arquivo \ndelete -- Deletar Arquivo \nwrite -- Escrever no Arquivo\nread -- Mostrar Conteudo do Arquivo\nmkdir -- Criar Diretorio \nrmdir -- Remover Diretorio \ndir -- Mostrar conteudo do diretorio\ncd -- Trocar de Diretorio\nhelp -- Comandos \nclose -- Encerrar conexao\n");
       send(new_socket, mensagem, strlen(mensagem), 0);
     }
+    //ENCERRANDO CONEXAO
     else if(strcmpst1nl(opt, "close") == 0)
     {
       close(new_socket);
@@ -225,13 +240,13 @@ int file_create(int new_socket, char *current_dir_name)
     strcpy(mensagem, "Nome do arquivo invalido!");
     send(new_socket, mensagem, strlen(mensagem), 0);
   }else{
-    buffer[strlen(buffer)-1] = '\0';                                          //REMOVENDO ULTIMO CARACTERE
+    buffer[strlen(buffer)-1] = '\0';                                            //REMOVENDO ULTIMO CARACTERE
     strcpy(caminho, current_dir_name);
     caminho[strlen(caminho)] = '/';
     strcat(caminho, buffer);
     snprintf(nome, sizeof(nome), "%s.txt", caminho);                            //ADICIONANDO A EXTENSAO .TXT AO NOME
-    FILE* new_file = fopen(nome, "w");                                        //CRIANDO O ARQUIVO
-    if(new_file == NULL){                                                     //CHECANDO ERRO
+    FILE* new_file = fopen(nome, "w");                                          //CRIANDO O ARQUIVO
+    if(new_file == NULL){                                                       //CHECANDO ERRO
       strcpy(mensagem, "Falha ao criar arquivo!");
       send(new_socket, mensagem, strlen(mensagem), 0);
     }else{
@@ -259,10 +274,8 @@ int file_delete(int new_socket, char* current_dir_name)
     strcpy(caminho, current_dir_name);
     caminho[strlen(caminho)-1] = '/';
     strcat(caminho, buffer);
-    snprintf(nome, sizeof(nome), "%s.txt",buffer);                            //ADICIONANDO A EXTENSAO .TXT AO NOME
-    strcpy(mensagem, nome);
-    snprintf(nome, sizeof(nome), "%s.txt", buffer);                           //INSERINDO A EXTENSAO .TXT AO NOME
-    if(remove(nome) == -1){                                                   //REMOVENDO O ARQUIVO
+    snprintf(nome, sizeof(nome), "%s.txt", buffer);                             //INSERINDO A EXTENSAO .TXT AO NOME
+    if(remove(nome) == -1){                                                     //REMOVENDO O ARQUIVO
       strcpy(mensagem, "Falha ao deletar arquivo");
       send(new_socket, mensagem, strlen(mensagem), 0);
     }else{
@@ -288,13 +301,13 @@ int directory_make(int new_socket, char *current_dir_name)
     strcpy(mensagem, "Erro ao criar diretorio!");
     send(new_socket, mensagem, strlen(mensagem), 0);
   }else{
-    chmod(buffer, ALLPERMS);
+    chmod(buffer, ALLPERMS);                                                    //ALTERANDO MODO DE PERMISSÃO
     strcpy(mensagem, "Diretorio criado com sucesso!");
     send(new_socket, mensagem, strlen(mensagem), 0);
   }
 }
 
-int file_print(int new_socket, char *current_dir_name)
+int file_read(int new_socket, char *current_dir_name)
 {
   char mensagem[1024] = "";
   char buffer[1024]   = "";
@@ -312,9 +325,7 @@ int file_print(int new_socket, char *current_dir_name)
     strcpy(caminho, current_dir_name);
     caminho[strlen(caminho)-1] = '/';
     strcat(caminho, buffer);
-    snprintf(nome, sizeof(nome), "%s.txt",buffer);                            //ADICIONANDO A EXTENSAO .TXT AO NOME
-    strcpy(mensagem, nome);
-    snprintf(nome, sizeof(nome), "%s.txt", buffer);
+    snprintf(nome, sizeof(nome), "%s.txt",buffer);
     FILE* read_file = fopen(nome, "r");
     if(read_file == NULL){
       strcpy(mensagem, "Falha ao abrir arquivo!");
@@ -346,8 +357,8 @@ int file_write(int new_socket, char *current_dir_name)
     strcpy(caminho, current_dir_name);
     caminho[strlen(caminho)-1] = '/';
     strcat(caminho, buffer);
-    snprintf(nome, sizeof(nome), "%s.txt",buffer);                            //ADICIONANDO A EXTENSAO .TXT AO NOME
-    strcpy(mensagem, nome);
+    //snprintf(nome, sizeof(nome), "%s.txt",buffer);                            //ADICIONANDO A EXTENSAO .TXT AO NOME
+    //strcpy(mensagem, nome);
     snprintf(nome, sizeof(nome), "%s.txt", buffer);
     FILE* write_file = fopen(nome, "w");
     if(write_file == NULL){
