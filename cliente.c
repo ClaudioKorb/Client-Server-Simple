@@ -1,13 +1,13 @@
 /*
   PROGRAMA CLIENTE PARA CONEXÃO SOCKETS EM SERVIDOR DE ARQUIVOS
-  Programador: Claudio André Korb
+  Programadores: Claudio André Korb
+                 Rafael Canal
   Instituição: Universidade Federal de Santa Catarina
   Disciplina: Sistemas Operacionais
 
   Big thanks to Brian "Beej Jorgensen" Hall for his amazing guide to Network Programming
   Available at: http://beej.us/guide/bgnet/html/multi/index.html
 */
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -30,7 +30,7 @@ int main(int argc, char const *argv[])
   int sock = 0, valread;                                                        // SOCKET PARA O CLIENTE
   struct sockaddr_in serv_addr;                                                 // ENDEREÇO DO SERVIDOR
   char *msg;
-  msg = malloc(1024*sizeof(char));
+  msg = (char *)malloc(1024*sizeof(char));
   char buffer[1024] = {0};
 
   struct addrinfo hints, *res;                                                  //ENDERECOS UTILIZADOS PARA PESQUISA DNS
@@ -42,7 +42,6 @@ int main(int argc, char const *argv[])
     printf("Nao foi possivel identificar o servidor\n");
     return -1;
   }
-
   if((sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0)   // AF_INET = IPV4, SOCK_STREAM = TCP, 0 = PROTOLOCO IP
   {                                                                             // CRIA A CONEXAO SOCKET COM O SERVIDOR
     printf("\n Socket creation error \n");
@@ -68,8 +67,8 @@ int main(int argc, char const *argv[])
 
   while(1)
   {
-    valread = recv(sock, buffer, 1024, 0);                                      //LE MENSAGEM DE CHEGADA
-    printf("%s\n", buffer);                                                     //IMPRIME MENSAGEM DE CHEGADA
+    valread = recv(sock, buffer, 1024, 0);
+    printf("%s\n", buffer);                                                     //IMPRIME MENSAGEM DE CHEGADA                                      //LE MENSAGEM DE CHEGADA
     f_send_message(sock);
     memset(buffer, '\0', strlen(buffer));
     if(strcmpst1nl(buffer, "exit") == 0)
@@ -83,9 +82,18 @@ int main(int argc, char const *argv[])
 }
 
 void f_send_message(int sock){
-  char* mensagem = malloc(LEN*sizeof(char));
+  char* mensagem = (char*)malloc(LEN*sizeof(char));
   fgets(mensagem, LEN, stdin);
+  if(strcmpst1nl(mensagem, "cls") == 0)
+  {
+    system("clear");
+    free(mensagem);
+    char* mensagem = (char*)malloc(LEN*sizeof(char));
+    fgets(mensagem, LEN, stdin);
+  }
   send(sock, mensagem, strlen(mensagem), 0);
+  memset(mensagem, '\0', sizeof(mensagem));
+  free(mensagem);
   return;
 }
 
