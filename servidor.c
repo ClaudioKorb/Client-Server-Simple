@@ -388,16 +388,23 @@ int directory_remove(int new_socket, char *current_dir_name)
   if(valread = read(new_socket, buffer, 32) == -1){
     strcpy(mensagem, "Nome do diretorio invalido!");
     send(new_socket, mensagem, strlen(mensagem), 0);
-  }
-  buffer[strlen(buffer)-1] = '\0';
-  snprintf(caminho, sizeof(caminho), "%s/%s", current_dir_name, buffer);
-  if(rmdir(caminho) == -1){
-    strcpy(mensagem, "Falha ao remover diretorio!");
-    send(new_socket, mensagem, strlen(mensagem), 0);
   }else{
-    strcpy(mensagem, "Diretorio removido com sucesso!");
-    send(new_socket, mensagem, strlen(mensagem), 0);
+    buffer[strlen(buffer)-1] = '\0';
+    if(strcmp(buffer, "Servidor de Arquivos") == 0){
+      strcpy(mensagem, "Falha ao remover diretorio");
+      send(new_socket, mensagem, strlen(mensagem), 0);
+      return 0;
+    }
+    snprintf(caminho, sizeof(caminho), "%s/%s", current_dir_name, buffer);
+    if(rmdir(caminho) == -1){
+      strcpy(mensagem, "Falha ao remover diretorio!");
+      send(new_socket, mensagem, strlen(mensagem), 0);
+    }else{
+      strcpy(mensagem, "Diretorio removido com sucesso!");
+      send(new_socket, mensagem, strlen(mensagem), 0);
+    }
   }
+
 }
 
 int directory_print(int new_socket, DIR *current_dir)
