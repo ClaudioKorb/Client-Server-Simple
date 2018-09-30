@@ -18,7 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define PORT 8080
+#define PORT 8979
 #define LEN  1024
 
 void f_send_message(int sock);
@@ -31,7 +31,8 @@ int main(int argc, char const *argv[])
   struct sockaddr_in serv_addr;                                                 // ENDEREÇO DO SERVIDOR
   char *msg;
   msg = (char *)malloc(1024*sizeof(char));
-  char buffer[1024] = {0};
+  char buffer[1024] = "";
+  char path[1024] = "";
 
   struct addrinfo hints, *res;                                                  //ENDERECOS UTILIZADOS PARA PESQUISA DNS
   memset(&hints, 0, sizeof(hints));                                             //PREENCHENDO A MEMORIA COM 0s
@@ -68,7 +69,7 @@ int main(int argc, char const *argv[])
   while(1)
   {
     valread = recv(sock, buffer, 1024, 0);
-    printf("%s\n", buffer);                                                     //IMPRIME MENSAGEM DE CHEGADA                                      //LE MENSAGEM DE CHEGADA
+    printf("%s\n", buffer);                                                     //IMPRIME MENSAGEM DE CHEGADA
     f_send_message(sock);
     memset(buffer, '\0', strlen(buffer));
     if(strcmpst1nl(buffer, "exit") == 0)
