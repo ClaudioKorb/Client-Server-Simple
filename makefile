@@ -12,6 +12,7 @@ CC = gcc
 #$(CC)  -I $(INCLUDE) -I $(SYS) -I $(NETINET) -I $(ARPA) -o servidor servidor.c
 #$(CC)  -I $(INCLUDE) -I $(SYS) -I $(NETINET) -I $(ARPA) -o cliente cliente.c
 all:
+	truncate -s 10000 sistema.bin
 	$(CC)  -o servidor servidor.c
 	$(CC)  -o cliente cliente.c	
 
@@ -26,3 +27,4 @@ runcliente:
 #clean executables
 clean:
 	rm *.exe
+	rm *.bin
