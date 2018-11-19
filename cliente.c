@@ -72,8 +72,7 @@ int main(int argc, char const *argv[])
     printf("%s\n", buffer);                                                     //IMPRIME MENSAGEM DE CHEGADA
     f_send_message(sock);
     memset(buffer, '\0', strlen(buffer));
-    if(strcmpst1nl(buffer, "exit") == 0)
-    {
+    if(strcmpst1nl(buffer, "exit") == 0){
       exit(0);
       close(sock);
     }
