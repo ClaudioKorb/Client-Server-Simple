@@ -160,8 +160,9 @@ void * at_connection(void* socket_fd)
   char diretorioAtual[1024] = "root";
   int new_socket = *(int*)socket_fd;
 
-  strcpy(mensagem, "\nBem vindo ao servidor de arquivos!\nComandos: \ncreate -- Criar Arquivo \ndelete -- Deletar Arquivo \nwrite -- Escrever no Arquivo\nread -- Mostrar Conteudo do Arquivo\nmkdir -- Criar Diretorio \nrmdir -- Remover Diretorio \ndir -- Mostrar conteudo do diretorio\ncd -- Trocar de Diretorio\nhelp -- Comandos \nclose -- Encerrar conexao\n");
+  strcpy(mensagem, "\nBem vindo ao servidor de arquivos!\nComandos: \ncreate -- Criar Arquivo \ndelete -- Deletar Arquivo \nwrite -- Escrever no Arquivo\nread -- Mostrar Conteudo do Arquivo\nmkdir -- Criar Diretorio \n \ndir -- Mostrar conteudo do diretorio\ncd -- Trocar de Diretorio\nhelp -- Comandos \nclose -- Encerrar conexao\n");
   send(new_socket, mensagem, strlen(mensagem), 0);
+  memset(mensagem, 0, sizeof(mensagem));
 
   while(1)
   {
@@ -193,6 +194,15 @@ void * at_connection(void* socket_fd)
                 if(strcmpst1nl(opt, "read") == 0)
                 {
                   mostraConteudo(new_socket, diretorioAtual);
+                }else{
+                  if(strcmpst1nl(opt, "help") == 0)
+                  {
+                    int ajuda(int new_socket);
+                  }else{
+                    strcpy(mensagem, "Comando invalido!");
+                    send(new_socket, mensagem, strlen(mensagem), 0);
+                    memset(mensagem, 0, sizeof(mensagem));
+                  }
                 }
               }
             }
@@ -294,13 +304,12 @@ int criarDiretorio(int new_socket, char* diretorio)
 
 }
 
-
 int criarArquivo(int new_socket, char* diretorio)
 {
   char buffer[1024] = "";
   char mensagem[1024] = "";
   int valread;
-
+  //LENDO O NOME DO ARQUIVO DO CLIENTE=====================
   strcpy(mensagem, "Digite o nome do arquivo:");
   send(new_socket, mensagem, strlen(mensagem), 0);
   memset(mensagem, 0, sizeof(mensagem));
@@ -312,6 +321,8 @@ int criarArquivo(int new_socket, char* diretorio)
     memset(mensagem, 0, sizeof(mensagem));
     return -1;
   }
+  //=========================================================
+  //PROCURANDO INODE DO DIRETORIO ATUAL NO ARQUIVO
   int pos = buscaInodePorNome(diretorio);
   if(pos == -1)
   {
@@ -320,7 +331,7 @@ int criarArquivo(int new_socket, char* diretorio)
     memset(mensagem, 0, sizeof(mensagem));
     return 4;
   }
-
+  //CRIANDO INODE PRO NOVO ARQUIVO
   inode novoArquivo;
   memset(novoArquivo.nome, 0, sizeof(novoArquivo.nome));
   novoArquivo.tipo = 1;
@@ -328,6 +339,7 @@ int criarArquivo(int new_socket, char* diretorio)
   novoArquivo.pai = pos;
   buffer[strlen(buffer)-1] = '\0';
   strcpy(novoArquivo.nome, buffer);
+  //PROCURANDO UM BLOCO DE MEMORIA LIVRE
   int novoBloco = procuraBlocoLivre();
   novoArquivo.bloco = INICIO_DADOS + novoBloco*TAMANHO_BLOCO;
   sinalizaBloco(novoBloco);
@@ -366,7 +378,7 @@ int criarArquivo(int new_socket, char* diretorio)
     return 5;
   }
 
-  //PROCURA O INODE DO DIRETORIO ATUAL
+  //LE O INODE DO DIRETORIO ATUAL
   fseek(sistema, pos, SEEK_SET);
   inode diretorioAtual;
   bloco blocoAtual;
@@ -374,6 +386,8 @@ int criarArquivo(int new_socket, char* diretorio)
   //PROCURA O BLOCO DE MEMORIA DO DIRETORIO ATUAL
   fseek(sistema, diretorioAtual.bloco, SEEK_SET);
   int i = 0;
+  //ESCREVE O NOVO ARQUIVO NA ULTIMA POSICAO
+    //A ULTIMA POSICAO É REPRESENTADA POR FF FF FF FF (-1)
   while(i < 50)
   {
     int candidato;
@@ -403,7 +417,7 @@ int removeArquivo(int new_socket, char* diretorio)
   char buffer[1024] = "";
   char mensagem[1024] = "";
   int valread;
-
+  //RECEBE O NOME DO ARQUIVO DO CLIENTE
   strcpy(mensagem, "Digite o nome do arquivo");
   send(new_socket, mensagem, strlen(mensagem), 0);
   memset(mensagem, 0, sizeof(mensagem));
@@ -415,11 +429,11 @@ int removeArquivo(int new_socket, char* diretorio)
     memset(mensagem, 0, sizeof(mensagem));
   }
 
-//------ REMOVENDO A REFERENCIA DO ARQUIVO NO DIRETORIO ---------------------
+//========= REMOVENDO A REFERENCIA DO ARQUIVO NO DIRETORIO =====================
   int posicao_diretorio_raiz = buscaInodePorNome(diretorio);
   inode diretorioRaiz;
   sistema = fopen("sistema.bin", "r+b");
-
+  //LE O DIRETORIO ATUAL
   fseek(sistema, posicao_diretorio_raiz, SEEK_SET);
   fread(&diretorioRaiz, sizeof(inode), 1, sistema);
   fseek(sistema, diretorioRaiz.bloco, SEEK_SET);
@@ -428,7 +442,7 @@ int removeArquivo(int new_socket, char* diretorio)
   int node = 0;
   int i = 0;
   inode candidato;
-
+  //SALVANDO OS INODES DO DIRETORIO ATUAL EM UM VETOR---------------------------
   while(node != -1)
   {
     fread(&node, sizeof(int), 1, sistema);
@@ -443,7 +457,8 @@ int removeArquivo(int new_socket, char* diretorio)
     nodes[i] = node;
     i++;
   }
-
+  //----------------------------------------------------------------------------
+  //----------- PROCURA A REFERENCIA DO INODE NO DIRETORIO ---------------------
   i = 0;
   while(i < count)
   {
@@ -457,7 +472,8 @@ int removeArquivo(int new_socket, char* diretorio)
     }
   }
   int posicao_candidato = nodes[i];
-
+  //----------------------------------------------------------------------------
+  //-------- REMOVE A REFERENCIA E 'PUXA' TODOS OS OUTROS PRA FRENTE -----------
   int j = i;
   while(j <= count - 2)
   {
@@ -465,15 +481,13 @@ int removeArquivo(int new_socket, char* diretorio)
     j++;
   }
   nodes[count-1] = 0;
-
+  //----------------------------------------------------------------------------
   fseek(sistema, diretorioRaiz.bloco, SEEK_SET);
   fwrite(nodes, sizeof(nodes), 1, sistema);
-  //free(nodes);
+  free(nodes);
+//==============================================================================
 
-//------------------------------------------------------
-
-  //MARCANDO O BLOCO COMO LIBERADO NO MAPA DE BITS
-
+  //------------MARCANDO O BLOCO COMO LIBERADO NO MAPA DE BITS------------------
   int zeros[50] = {};
   char zero = 0;
   int byte = (candidato.bloco - INICIO_DADOS)/TAMANHO_BLOCO;
@@ -481,8 +495,8 @@ int removeArquivo(int new_socket, char* diretorio)
   fwrite(zeros, sizeof(zeros), 1, sistema);
   fseek(sistema, byte, SEEK_SET);
   fwrite(&zero, sizeof(zero), 1, sistema);
-
-  //REMOVENDO O INODE
+  //----------------------------------------------------------------------------
+  //-------------------------REMOVENDO O INODE----------------------------------
   fseek(sistema, posicao_candidato, SEEK_SET);
   fread(&candidato, sizeof(inode), 1, sistema);
 
@@ -586,8 +600,8 @@ int trocaDiretorio(int new_socket, char *diretorio)
   FILE * sistema = fopen("sistema.bin", "r+b");
   char mensagem[1024] = "";
   char buffer[1024] = "";
-  char retorno[18] = "";
   int valread;
+  //RECEBE O NOME DO DIRETORIO DO CLIENTE
   strcpy(mensagem, "Digite o nome do diretorio");
   send(new_socket, mensagem, strlen(mensagem), 0);
   memset(mensagem, 0, sizeof(mensagem));
@@ -598,13 +612,43 @@ int trocaDiretorio(int new_socket, char *diretorio)
     memset(mensagem, 0, sizeof(mensagem));
   }
 
+  //PROCURA O DIRETORIO ATUAL NO ARQUIVO
   int posicao_diretorio_raiz = buscaInodePorNome(diretorio);
   inode diretorioAtual;
   fseek(sistema, posicao_diretorio_raiz, SEEK_SET);
   fread(&diretorioAtual, sizeof(inode), 1, sistema);
-  fseek(sistema, diretorioAtual.bloco, SEEK_SET);
+
+  //CASO O USUARIO QUEIRA VOLTAR
+  if(strcmpst1nl(buffer, "..") == 0)
+  {
+    int numero_pai = diretorioAtual.pai;
+    //O DIRETORIO 'ROOT' NAO TEM PAI
+    if(numero_pai == -1)
+    {
+      strcpy(mensagem, "Diretorio destino nao existe");
+      send(new_socket, mensagem, strlen(mensagem), 0);
+      memset(mensagem, 0, sizeof(mensagem));
+      return -1;
+    }else{
+      //VOLTA PARA O DIRETORIO PAI
+      inode pai;
+      fseek(sistema, numero_pai, SEEK_SET);
+      fread(&pai, sizeof(inode), 1, sistema);
+      snprintf(mensagem, sizeof(mensagem), "Entrou no diretorio %s", pai.nome);
+      send(new_socket, mensagem, strlen(mensagem), 0);
+      memset(mensagem, 0, sizeof(mensagem));
+      //ALTERA A VARIAVEL DIRETORIO
+      memset(diretorio, 0, sizeof(diretorio));
+      strcpy(diretorio, pai.nome);
+      return 0;
+    }
+  }
+
+  //==========PROCURA O DIRETORIO DE DESTINO NO DIRETORIO ATUAL=================
   inode candidato;
   int posicao_candidato;
+
+  fseek(sistema, diretorioAtual.bloco, SEEK_SET);
   fread(&posicao_candidato, sizeof(int), 1, sistema);
   int i = 0;
 
@@ -617,6 +661,7 @@ int trocaDiretorio(int new_socket, char *diretorio)
       snprintf(mensagem, sizeof(mensagem), "Entrou no diretorio %s", candidato.nome);
       send(new_socket, mensagem, strlen(mensagem), 0);
       memset(mensagem, 0, sizeof(mensagem));
+      //ALTERA A VARIAVEL 'DIRETORIO'
       memset(diretorio, 0, sizeof(diretorio));
       strcpy(diretorio, candidato.nome);
       return 0;
@@ -628,7 +673,7 @@ int trocaDiretorio(int new_socket, char *diretorio)
   strcpy(mensagem, "Diretorio nao existe");
   send(new_socket, mensagem, strlen(mensagem), 0);
   memset(mensagem, 0, sizeof(mensagem));
-  return -1;
+  return -2;
 }
 
 int listaConteudo(int new_socket, char* diretorio)
@@ -637,13 +682,14 @@ int listaConteudo(int new_socket, char* diretorio)
   char mensagem[1024] = "";
   char buffer[1024] = "";
   int valread;
-
+  //PROCURA O DIRETORIO ATUAL NO ARQUIVO
   inode diretorioAtual;
   int local_diretorioAtual = buscaInodePorNome(diretorio);
   sistema = fopen("sistema.bin", "rb");
   fseek(sistema, local_diretorioAtual, SEEK_SET);
   fread(&diretorioAtual, sizeof(inode), 1, sistema);
 
+  //------------------ESCREVE OS INODES DO DIRETORIO EM UM VETOR----------------
   int* conteudo;
   int count = 0;
   int node;
@@ -662,8 +708,10 @@ int listaConteudo(int new_socket, char* diretorio)
     fread(&conteudo[i], sizeof(int), 1, sistema);
     i++;
   }
+  //----------------------------------------------------------------------------
   i = 0;
   inode atual;
+  //------------ COPIA OS CONTEUDOS DO DIRETORIO PRA MENSAGEM ------------------
   while(i < count)
   {
     fseek(sistema, conteudo[i], SEEK_SET);
@@ -675,7 +723,7 @@ int listaConteudo(int new_socket, char* diretorio)
   }
   send(new_socket, mensagem, strlen(mensagem), 0);
   memset(mensagem, 0, sizeof(mensagem));
-
+  //----------------------------------------------------------------------------
   fclose(sistema);
 }
 
@@ -685,7 +733,7 @@ int escreveNoArquivo(int new_socket, char* diretorio)
   char mensagem[1024] = "";
   char buffer[1024] = "";
   int valread;
-
+  //===== RECEBE O NOME DO CLIENTE ================
   strcpy(mensagem, "Digite o nome do arquivo");
   send(new_socket, mensagem, strlen(mensagem), 0);
   memset(mensagem, 0, sizeof(mensagem));
@@ -697,7 +745,7 @@ int escreveNoArquivo(int new_socket, char* diretorio)
     memset(mensagem, 0, sizeof(mensagem));
     return -1;
   }
-
+  //=================================================
   sistema = fopen("sistema.bin", "r+b");
   if(!sistema)
   {
@@ -706,7 +754,7 @@ int escreveNoArquivo(int new_socket, char* diretorio)
     memset(mensagem, 0, sizeof(mensagem));
     return -2;
   }
-
+  //------------------ PROCURA O DIRETORIO ATUAL NO ARQUIVO --------------------
   int posicao_diretorio_raiz;
   inode diretorioRaiz;
 
@@ -716,7 +764,8 @@ int escreveNoArquivo(int new_socket, char* diretorio)
   fread(&diretorioRaiz, sizeof(inode), 1, sistema);
 
   fseek(sistema, diretorioRaiz.bloco, SEEK_SET);
-
+  //----------------------------------------------------------------------------
+  //--------------- ESCREVE OS INODES DO DIRETORIO EM UM VETOR------------------
   int node;
   int * conteudo;
   int count = 0;
@@ -734,7 +783,8 @@ int escreveNoArquivo(int new_socket, char* diretorio)
     i++;
   }
   i = 0;
-
+  //----------------------------------------------------------------------------
+  //------------------------ PROCURA O ARQUIVO NOS INODES ----------------------
   inode candidato;
   while(i < count)
   {
@@ -755,11 +805,11 @@ int escreveNoArquivo(int new_socket, char* diretorio)
     return -3;
   }
   fseek(sistema, candidato.bloco, SEEK_SET);
-
+  //----------------------------------------------------------------------------
+  //------------------ RECEBE O CONTEUDO DO CLIENTE ----------------------------
   strcpy(mensagem, "O que deseja escrever?");
   send(new_socket, mensagem, strlen(mensagem), 0);
   memset(mensagem, 0, sizeof(mensagem));
-
   memset(buffer, 0, sizeof(buffer));
 
   if(valread = read(new_socket, buffer, 50) == 0)
@@ -769,6 +819,8 @@ int escreveNoArquivo(int new_socket, char* diretorio)
     memset(mensagem, 0, sizeof(mensagem));
     return -4;
   }
+  //----------------------------------------------------------------------------
+  //------------------------ ESCREVE O CONTEUDO NO ARQUIVO ---------------------
   buffer[strlen(buffer) - 1] = '\0';
   char str[TAMANHO_BLOCO] = "";
   strcpy(str, buffer);
@@ -789,7 +841,7 @@ int mostraConteudo(int new_socket, char* diretorio)
   char mensagem[1024] = "";
   char buffer[1024] = "";
   int valread;
-
+  //============ RECEBE O NOME DO ARQUIVO DO CLIENTE ==========================
   strcpy(mensagem, "Digite o nome do arquivo");
   send(new_socket, mensagem, strlen(mensagem), 0);
   memset(mensagem, 0, sizeof(mensagem));
@@ -801,6 +853,7 @@ int mostraConteudo(int new_socket, char* diretorio)
     memset(mensagem, 0, sizeof(mensagem));
     return -1;
   }
+  //===========================================================================
 
   sistema = fopen("sistema.bin", "r+b");
   if(!sistema)
@@ -811,6 +864,7 @@ int mostraConteudo(int new_socket, char* diretorio)
     return -2;
   }
 
+  //---------------------- PROCURA O DIRETORIO ATUAL ---------------------------
   int posicao_diretorio_raiz;
   inode diretorioRaiz;
 
@@ -820,7 +874,7 @@ int mostraConteudo(int new_socket, char* diretorio)
   fread(&diretorioRaiz, sizeof(inode), 1, sistema);
 
   fseek(sistema, diretorioRaiz.bloco, SEEK_SET);
-
+  // ----------------- SALVA OS INODES DO DIRETORIO EM UM VETOR ----------------
   int node;
   int * conteudo;
   int count = 0;
@@ -838,7 +892,8 @@ int mostraConteudo(int new_socket, char* diretorio)
     i++;
   }
   i = 0;
-
+  // ---------------------------------------------------------------------------
+  //----------- PROCURA O INODE DO ARQUIVO NOS INODES DO DIRETORIO -------------
   inode candidato;
   while(i < count)
   {
@@ -858,11 +913,21 @@ int mostraConteudo(int new_socket, char* diretorio)
     memset(mensagem, 0, sizeof(mensagem));
     return -3;
   }
+  //----------------------------------------------------------------------------
+  //--------------------- PROCURA O BLOCO DO ARQUIVO ---------------------------
   fseek(sistema, candidato.bloco, SEEK_SET);
-
+  //-------------------- LENDO AS INFORMACOES DO BLOCO -------------------------
   fread(&mensagem, TAMANHO_BLOCO, 1, sistema);
   send(new_socket, mensagem, strlen(mensagem), 0);
   memset(mensagem, 0, sizeof(mensagem));
 
   fclose(sistema);
+}
+
+int ajuda(int new_socket)
+{
+  char mensagem[1024] = "";
+  strcpy(mensagem, "\nBem vindo ao servidor de arquivos!\nComandos: \ncreate -- Criar Arquivo \ndelete -- Deletar Arquivo \nwrite -- Escrever no Arquivo\nread -- Mostrar Conteudo do Arquivo\nmkdir -- Criar Diretorio \n \ndir -- Mostrar conteudo do diretorio\ncd -- Trocar de Diretorio\nhelp -- Comandos \nclose -- Encerrar conexao\n");
+  send(new_socket, mensagem, strlen(mensagem), 0);
+  return 0;
 }
